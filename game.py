@@ -241,6 +241,11 @@ if __name__ == '__main__':
                     create_players(game_mode, player_list=prev_players + current_players)
 
                     generation += 1
+#                     if generation == 3:
+#                         print("======================================")
+#                         print("          END OF EVOLUTION")
+#                         print("======================================")
+#                         break
                     start_time = pygame.time.get_ticks()
 
             current_score = display_score()
@@ -267,3 +272,22 @@ if __name__ == '__main__':
             draw_intro_text("Amirkabir University of Technology", height=650, color='#AB8CD5')
         pygame.display.update()
         clock.tick(60)
+        
+        
+     # END OF EVOLUTION
+    f = open("result.txt", "r")
+    lines = f.readlines()
+    f.close()
+    bscores = [line.rstrip() for line in lines]
+    max_of_generations  = [b.split()[0] for b in bscores]
+    mean_of_generations = [b.split()[1] for b in bscores]
+    min_of_generations  = [b.split()[2] for b in bscores]
+    
+    plt.plot(range(0,generation-1),max_of_generations)
+    plt.show() 
+
+    plt.plot(range(0,generation-1),mean_of_generations)
+    plt.show() 
+
+    plt.plot(range(0,generation-1),min_of_generations)
+    plt.show() 
