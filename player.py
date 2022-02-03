@@ -35,29 +35,99 @@ class Player(pygame.sprite.Sprite):
         if self.game_mode == "Neuroevolution":
             self.fitness = 0  # Initial fitness
 
-            layer_sizes = [3, 10, 2]  # TODO (Design your architecture here by changing the values)
+            layer_sizes = [7, 14, 2]  # TODO (Design your architecture here by changing the values)
             self.nn = NeuralNetwork(layer_sizes)
+
+    def normalize(self,obstacles):
+        obsx,obsy = list(),list()
+        for obs in obstacles:
+            obsx.append(obs['x'])
+            obsy.append(obs['y'])
+        mx = statistics.mean(obsx)
+        maxx = max(obsx)
+        minx = min(obsx)
+
+        my = statistics.mean(obsy)
+        maxy = max(obsy)
+        miny = min(obsy)
+
+        normalize_obstacles = list()
+        for obs in obstacles:
+            if (maxx - minx)!=0: 
+                new_x = (obs['x']-mx)/(maxx-minx)
+            else:
+                new_x = 0.0
+            if (maxy - miny)!=0:
+                new_y = (obs['y']-my)/(maxy-miny)
+            else:
+                new_y = 0.0
+
+            normalize_obstacles.append({'x':new_x, 'y':new_y})
+        return normalize_obstacles
+
+    def generate_neural_network_input(self, screen_width, screen_height, obstacles, player_x, player_y):
+        distances = list()
+        distances_normalized_matrix = list()
+
+        if obstacles:
+            priority = 0
+            obstacles = self.normalize(obstacles)
+            obstacles.reverse()
+            for obs in obstacles:
+                
+                # disx = [np.exp(player_x - obs['x'] + priority)]
+                # disy = [np.exp(player_y - obs['y'] + priority)]
+
+                disx = [(player_x - obs['x'] + priority)/(screen_width)]
+                disy = [(player_y - obs['y'] + priority)/(screen_height)]
+
+                # disx = [np.exp((player_x - obs['x'] + priority)/(screen_width))]
+                # disy = [np.exp((player_y - obs['y'] + priority)/(screen_height))]
+                
+                priority = priority + 50
+                distances.append(disx)
+                distances.append(disy)
+
+
+            if len(distances) < self.nn.layer_sizes[0]:
+                distances = distances + [[0.0] for i in range(self.nn.layer_sizes[0]-len(distances))]
+            elif len(distances) > self.nn.layer_sizes[0]:
+                distances = distances[:self.nn.layer_sizes[0]]
+            distances = np.array(distances)
+            return distances
+        else:
+            return []
+
+
 
     def think(self, screen_width, screen_height, obstacles, player_x, player_y):
         """
         Creates input vector of the neural network and determines the gravity according to neural network's output.
-
+    
         :param screen_width: Game's screen width which is 604.
         :param screen_height: Game's screen height which is 800.
         :param obstacles: List of obstacles that are above the player. Each entry is a dictionary having 'x' and 'y' of
         the obstacle as the key. The list is sorted based on the obstacle's 'y' point on the screen. Hence, obstacles[0]
-        is the first obstacle on the scene. It is also worthwhile noting that 'y' range is in [-100, 656], such that
+        is the nearest obstacle to our player. It is also worthwhile noting that 'y' range is in [-100, 656], such that
         -100 means it is off screen (Topmost point) and 656 means in parallel to our player's 'y' point.
         :param player_x: 'x' position of the player
         :param player_y: 'y' position of the player
         """
-        # TODO (change player's gravity here by calling self.change_gravity)
 
-        # This is a test code that changes the gravity based on a random number. Remove it before your implementation.
-        if random.randint(0, 2):
-            self.change_gravity('left')
+        nn_input_data = self.generate_neural_network_input(screen_width, screen_height, obstacles, player_x, player_y)        
+
+        if len(nn_input_data)!=0:
+            gravity_vector = self.nn.forward(nn_input_data)
+            if np.amax(gravity_vector[-1]) == gravity_vector[-1][0]:
+                self.change_gravity('left')
+            elif np.amax(gravity_vector[-1]) == gravity_vector[-1][1]:
+                self.change_gravity('right')
         else:
-            self.change_gravity('right')
+            # This is a test code that changes the gravity based on a random number. Remove it before your implementation.
+            if random.randint(0, 2):
+                self.change_gravity('left')
+            else:
+                self.change_gravity('right')
 
     def change_gravity(self, new_gravity):
         """
